@@ -1,0 +1,5 @@
+#!/bin/bash
+
+
+echo "EPIC FAIL"
+exit 1337
