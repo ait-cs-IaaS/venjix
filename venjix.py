@@ -6,6 +6,7 @@ from flask import Flask, Response, jsonify, request, redirect
 from functools import wraps
 import json
 import subprocess
+import logging
 from typing import Tuple
 from slugify import slugify
 from threading import Thread
@@ -16,6 +17,12 @@ app = Flask(__name__)
 AUTH_SECRET = os.getenv('VENJIX_AUTH_SECRET', default="53CR3T")
 SCRIPT_DIR  = os.getenv('SCRIPT_DIR', default="scripts")
 SCRIPT_LIST = os.listdir(SCRIPT_DIR)
+
+
+def bootstrap():
+  for s in SCRIPT_LIST:
+    if s != slugify(s):
+      logger.error("ERROR: {0} is not a valid script name, remove all special characters".format(s))
 
 
 def get_script_input(args) -> str:
@@ -29,6 +36,12 @@ def get_script_path(script) -> str:
   return os.path.abspath(os.path.join(SCRIPT_DIR, script_path))
 
 
+def send_callback(callback_uri: str, payload) -> int:
+  r = requests.post(callback_uri, data=payload)
+  logger.info("callback : {0}".format(r.status_code))
+  return r.status_code
+
+
 def call_async(script_path, script_input) -> int:
   proc = subprocess.run(
     script_path,
@@ -37,12 +50,14 @@ def call_async(script_path, script_input) -> int:
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE
   )
-  if proc.returncode == 0:
-    print(proc.stdout)
-    return 200
+  logger.info(proc.stdout)
+  logging.warning(proc.stderr)
+  if 'callback' in script_path:
+    callback = script_path['callback']
+    callback_payload = { "returncode": proc.returncode, "stdout": proc.stdout, "stderr": proc.stderr }
+    send_callback(callback_uri=callback, payload=callback_payload)
 
-  print(proc.stdout + proc.stderr)
-  return 500
+  return
 
 
 def login(f):
@@ -71,7 +86,6 @@ def script(script):
   if script_path == "":
     return Response(response='Script not Found', status=500, mimetype="text/plain")
 
-  # status, body = call_async(script_path, script_input)
   try:
     thread = Thread(target=call_async, args=(script_path, script_input))
     thread.daemon = True
@@ -84,4 +98,5 @@ def script(script):
 
 
 if __name__ == "__main__":
+  bootstrap()
   app.run(debug=True)
