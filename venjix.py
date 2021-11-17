@@ -7,9 +7,11 @@ from functools import wraps
 import json
 import subprocess
 import logging
-from typing import Tuple
+import requests
+from typing import Tuple, Dict
 from slugify import slugify
 from threading import Thread
+import traceback
 
 
 app = Flask(__name__)
@@ -22,11 +24,23 @@ SCRIPT_LIST = os.listdir(SCRIPT_DIR)
 def bootstrap():
   for s in SCRIPT_LIST:
     if s != slugify(s):
-      logger.error("ERROR: {0} is not a valid script name, remove all special characters".format(s))
+      logging.error("ERROR: {0} is not a valid script name, remove all special characters".format(s))
 
 
-def get_script_input(args) -> str:
-  return json.dumps(args.to_dict(), indent = 2)
+def create_response(response_txt: str, script_name: str, status: int):
+  response_json = {
+    "script_name": script_name,
+    "response": response_txt
+  }
+  response = jsonify(response_json)
+  response.status_code = status
+  return response
+
+
+def parse_request_data(request_data) -> Tuple[str, str]:
+  script_input = request_data.get('args', '')
+  callback = request_data.get('callback', '')
+  return script_input, callback
 
 
 def get_script_path(script) -> str:
@@ -36,39 +50,44 @@ def get_script_path(script) -> str:
   return os.path.abspath(os.path.join(SCRIPT_DIR, script_path))
 
 
-def send_callback(callback_uri: str, payload) -> int:
-  r = requests.post(callback_uri, data=payload)
-  logger.info("callback : {0}".format(r.status_code))
-  return r.status_code
+def call_back(callback_uri: str, payload) -> int:
+  try:
+    r = requests.post(callback_uri, data=payload)
+    logging.info("callback : {0}".format(r.status_code))
+    return r.status_code
+  except:
+    return 500
 
 
-def call_async(script_path, script_input) -> int:
+def call_async(script_path, request_data) -> int:
+  script_input, callback_uri = parse_request_data(request_data)
+  logging.debug("CALL: {0}".format(script_path))
   proc = subprocess.run(
     script_path,
     encoding='ascii',
     input=script_input,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE
+    capture_output=True
   )
-  logger.info(proc.stdout)
-  logging.warning(proc.stderr)
-  if 'callback' in script_path:
-    callback = script_path['callback']
+  if proc.stdout:
+    logging.info(proc.stdout)
+  if proc.stderr:
+    logging.warning(proc.stderr)
+  if callback_uri != "":
     callback_payload = { "returncode": proc.returncode, "stdout": proc.stdout, "stderr": proc.stderr }
-    send_callback(callback_uri=callback, payload=callback_payload)
-
+    call_back(callback_uri=callback_uri, payload=callback_payload)
   return
 
 
 def login(f):
   @wraps(f)
   def decorated(*args, **kwargs):
-    authorization_header = request.headers.get('Authorization')
-    if authorization_header and (authorization_header == AUTH_SECRET):
+    authorization_header = request.headers.get('Authorization', "")
+    authorization_bearer = authorization_header.split(" ")
+    if len(authorization_bearer) > 1 and authorization_header.split(" ")[1] == AUTH_SECRET:
       return f(*args, **kwargs)
     if app.debug:
+      logging.warn("Login disabled in Debug mode")
       return f(*args, **kwargs)
-
     resp = Response()
     return resp, 401
   return decorated
@@ -81,20 +100,18 @@ def endpoints():
 @app.route('/<script>', methods = ['POST'])
 @login
 def script(script):
-  script_input = request.get_json() if request.content_type == 'application/json' else get_script_input(request.args)
+  request_data = request.get_json() if request.content_type == 'application/json' else request.args.to_dict()
   script_path  = get_script_path(script)
   if script_path == "":
-    return Response(response='Script not Found', status=500, mimetype="text/plain")
+    return create_response(response_txt='script not Found', status=404, script_name=script)
 
   try:
-    thread = Thread(target=call_async, args=(script_path, script_input))
-    thread.daemon = True
+    thread = Thread(target=call_async, args=(script_path, request_data))
     thread.start()
-    return Response(response='Script started', status=200, mimetype="text/plain")
+    return create_response(response_txt='script started', status=200, script_name=script)
   except:
-    import traceback
     traceback.print_exc()
-    return Response(response='Starting script failed', status=500, mimetype="text/plain")
+    return create_response(response_txt='starting script failed', status=500, script_name=script)
 
 
 if __name__ == "__main__":
