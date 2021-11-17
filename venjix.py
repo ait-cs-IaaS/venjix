@@ -52,7 +52,7 @@ def get_script_path(script) -> str:
 
 def call_back(callback_uri: str, payload) -> int:
   try:
-    r = requests.post(callback_uri, data=payload)
+    r = requests.post(callback_uri, json=payload)
     logging.info("callback : {0}".format(r.status_code))
     return r.status_code
   except:
