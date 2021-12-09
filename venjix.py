@@ -82,8 +82,8 @@ def login(f):
   @wraps(f)
   def decorated(*args, **kwargs):
     authorization_header = request.headers.get('Authorization', "")
-    authorization_bearer = authorization_header.split(" ")
-    if len(authorization_bearer) > 1 and authorization_header.split(" ")[1] == AUTH_SECRET:
+    authorization_bearer = authorization_header.split("Bearer ")
+    if len(authorization_bearer) > 1 and authorization_bearer[1] == AUTH_SECRET:
       return f(*args, **kwargs)
     if app.debug:
       logging.warn("Login disabled in Debug mode")
