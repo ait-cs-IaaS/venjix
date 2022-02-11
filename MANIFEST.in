@@ -1,0 +1,2 @@
+graft venjix/scripts
+exclude wsgi.py
