@@ -37,7 +37,7 @@ Content-Length: 61
 Server: Werkzeug/2.0.2 Python/3.10.0
 
 {
-  "response": "script started", 
+  "response": "script started",
   "script_name": "ping"
 }
 ```
@@ -57,7 +57,7 @@ Content-Length: 61
 Server: Werkzeug/2.0.2 Python/3.10.0
 
 {
-  "response": "script started", 
+  "response": "script started",
   "script_name": "ping"
 }
 ```
@@ -77,7 +77,7 @@ Content-Length: 61
 Server: Werkzeug/2.0.2 Python/3.10.0
 
 {
-  "response": "script started", 
+  "response": "script started",
   "script_name": "ping"
 }
 ```
