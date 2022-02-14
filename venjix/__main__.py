@@ -1,4 +1,4 @@
-from . import main
+from . import venjix
 
 if __name__ == "__main__":
-    main()
+    venjix.runflask()
