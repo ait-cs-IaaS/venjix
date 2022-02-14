@@ -110,11 +110,13 @@ def script(script):
         logging.exception("starting script: '{}' failed".format(script))
         return create_response(response_txt="starting script failed", status=500, script_name=script)
 
+
 def runflask():
     bootstrap()
     app = Flask(__name__)
     app.register_blueprint(bp)
     app.run(debug=True)
+
 
 if __name__ == "__main__":
     runflask()
