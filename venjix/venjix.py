@@ -54,7 +54,7 @@ def call_back(callback_uri: str, payload) -> int:
         logging.info("callback : {0}".format(r.status_code))
         return r.status_code
     except Exception:
-        logging.exception("callback: '{}' failed".format(callback_uri))
+        logging.exception(f"callback: '{callback_uri}' failed")
         return 500
 
 
@@ -107,7 +107,7 @@ def script(script):
         thread.start()
         return create_response(response_txt="script started", status=200, script_name=script)
     except Exception:
-        logging.exception("starting script: '{}' failed".format(script))
+        logging.exception(f"starting script: '{script}' failed")
         return create_response(response_txt="starting script failed", status=500, script_name=script)
 
 
