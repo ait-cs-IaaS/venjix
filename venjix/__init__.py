@@ -11,3 +11,6 @@ def main():
     app.register_blueprint(venjix.bp)
 
     return app
+
+
+app = main()
